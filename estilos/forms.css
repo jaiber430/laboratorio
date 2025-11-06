@@ -1,0 +1,148 @@
+/* ============================
+   VARIABLES (colores y sombras)
+============================= */
+:root {
+    --lab-primary: #2c3e50;
+    --lab-primary-light: #34495e;
+    --lab-primary-dark: #1a252f;
+    --lab-bg: #f9f9f9;
+    --lab-white: #ffffff;
+    --lab-border: #dcdcdc;
+    --lab-text: #2f3e46;
+    --lab-error: #e74c3c;
+    --lab-shadow: rgba(44, 62, 80, 0.15);
+    --lab-shadow-hover: rgba(44, 62, 80, 0.3);
+}
+
+/* ============================
+   NAMESPACE: .lab-form
+   Reset básico para inputs dentro de nuestro namespace
+============================= */
+.lab-form * {
+    box-sizing: border-box;
+}
+
+.lab-form {
+    background-color: var(--lab-white);
+    max-width: 400px;
+    padding: 30px 25px;
+    border-radius: 10px;
+    box-shadow: 0 6px 15px var(--lab-shadow);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: var(--lab-text);
+    margin: 0 auto;
+}
+
+.lab-form h1 {
+    font-size: 26px;
+    font-weight: 600;
+    margin-bottom: 25px;
+    text-align: center;
+    color: var(--lab-primary);
+}
+
+/* Inputs y textarea */
+.lab-form input[type="text"],
+.lab-form input[type="date"],
+.lab-form textarea {
+    width: 100%;
+    padding: 12px 15px;
+    font-size: 16px;
+    border: 1.8px solid var(--lab-border);
+    border-radius: 6px;
+    background-color: var(--lab-bg);
+    color: var(--lab-text);
+    transition: border-color 0.3s, box-shadow 0.3s;
+    font-family: inherit;
+    resize: vertical;
+}
+
+.lab-form input[type="text"]:focus,
+.lab-form input[type="date"]:focus,
+.lab-form textarea:focus {
+    border-color: var(--lab-primary);
+    outline: none;
+    box-shadow: 0 0 8px var(--lab-shadow-hover);
+    background-color: var(--lab-white);
+}
+
+/* Estilo personalizado para select en .lab-form */
+.lab-form select {
+    appearance: none;
+    /* Quita el estilo nativo */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-color: var(--lab-bg);
+    border: 1.8px solid var(--lab-border);
+    border-radius: 6px;
+    padding: 12px 40px 12px 15px;
+    /* Espacio para el icono a la derecha */
+    font-size: 16px;
+    color: var(--lab-text);
+    cursor: pointer;
+    transition: border-color 0.3s, box-shadow 0.3s;
+    font-family: inherit;
+    width: 100%;
+    background-repeat: no-repeat;
+    background-position: right 15px center;
+    background-size: 10px 7px;
+}
+
+.lab-form select:focus {
+    border-color: var(--lab-primary);
+    outline: none;
+    box-shadow: 0 0 8px var(--lab-shadow-hover);
+    background-color: var(--lab-white);
+}
+
+
+/* Espaciado entre campos */
+.lab-form .input-group {
+    margin-bottom: 20px;
+}
+
+/* Botón */
+.lab-form .btn {
+    display: inline-block;
+    width: 100%;
+    padding: 14px 0;
+    font-weight: 600;
+    font-size: 17px;
+    background-color: var(--lab-primary);
+    color: var(--lab-white);
+    border: none;
+    border-radius: 7px;
+    cursor: pointer;
+    text-align: center;
+    transition: background-color 0.3s, box-shadow 0.3s, transform 0.2s;
+    user-select: none;
+}
+
+.lab-form .btn:hover,
+.lab-form .btn:focus {
+    background-color: var(--lab-primary-dark);
+    box-shadow: 0 5px 15px var(--lab-shadow-hover);
+    transform: translateY(-2px);
+    outline: none;
+}
+
+/* Mensaje de error */
+.lab-form .mensaje-error {
+    margin-top: 15px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--lab-error);
+    text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .lab-form {
+        padding: 25px 20px;
+        max-width: 320px;
+    }
+
+    .lab-form h1 {
+        font-size: 22px;
+    }
+}
