@@ -1,251 +1,236 @@
 <?php
 header('Cache-Control: no-cache, must-revalidate');
+header('Content-Type: application/json; charset=utf-8');
 date_default_timezone_set('America/Bogota');
-header('Content-Type: application/json');
+
 include('../../include/conectar.php');
+
+// Validar método de petición
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode([
+        'error' => 'Método no permitido'
+    ]);
+    exit;
+}
+
 $conn = conectar();
-$fecha = date("Y-m-d");
+if (!$conn) {
+    http_response_code(500);
+    echo json_encode([
+        'error' => 'Error de conexión a la base de datos'
+    ]);
+    exit;
+}
+
+// Validar que la acción esté definida
+if (!isset($_REQUEST['action'])) {
+    http_response_code(400);
+    echo json_encode([
+        'error' => 'Acción no especificada'
+    ]);
+    exit;
+}
 
 switch ($_REQUEST['action']) {
 
     case 'presentarRoles':
         $jTableResult = array();
         $jTableResult['listaRoles'] = "";
+        $jTableResult['success'] = false;
 
-        $query = "SELECT idcargo, cargo FROM cargos ORDER BY cargo ASC";
-        $jTableResult['listaRoles'] = "
-            <table class='table table-striped'>
-                <thead>
-                    <tr>
-                        <th>Nombre</th>
-                        <th>Accion</th>
-                    </tr>
-                </thead>
-                <tbody>";
+        $query = "SELECT idcargo, cargo FROM cargos WHERE estado = 1 ORDER BY cargo ASC";
+        $stmt = mysqli_prepare($conn, $query);
+        
+        if ($stmt && mysqli_stmt_execute($stmt)) {
+            $result = mysqli_stmt_get_result($stmt);
+            
+            $jTableResult['listaRoles'] = "
+                <div class='table-responsive'>
+                    <table class='table table-striped table-hover'>
+                        <thead class='table-dark'>
+                            <tr>
+                                <th>Nombre del Rol</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>";
 
-        if ($result = mysqli_query($conn, $query)) {
+            $hasRecords = false;
             while ($registro = mysqli_fetch_array($result)) {
+                $hasRecords = true;
                 $jTableResult['listaRoles'] .= "
                 <tr>
-                    <td>{$registro['cargo']}</td>
+                    <td>" . htmlspecialchars($registro['cargo'], ENT_QUOTES, 'UTF-8') . "</td>
                     <td>
                         <button 
                             type='button'
-                            id='idBtnRol'
-                            data-idrol='{$registro['idcargo']}'
-                            data-nombrerol='{$registro['cargo']}'
-                            class='btn btn-danger btn-sm'>
-                            ver menu del rol {$registro['cargo']}
+                            class='btn btn-primary btn-sm btn-ver-permisos'
+                            data-idrol='" . htmlspecialchars($registro['idcargo'], ENT_QUOTES, 'UTF-8') . "'
+                            data-nombrerol='" . htmlspecialchars($registro['cargo'], ENT_QUOTES, 'UTF-8') . "'>
+                            <i class='fas fa-eye'></i> Ver permisos de " . htmlspecialchars($registro['cargo'], ENT_QUOTES, 'UTF-8') . "
                         </button>
                     </td>
                 </tr>";
             }
-            $jTableResult['listaRoles'] .= "</tbody></table>";
-        }
 
-        print json_encode($jTableResult);
-        break;
-
-
-case 'presentarmenu':
-    $jTableResult = array();
-    $jTableResult['listaMenu'] = "";
-
-    $queryMenu = "SELECT idmenu, menu FROM menu ORDER BY ordenmenu ASC";
-
-    if ($resultMenu = mysqli_query($conn, $queryMenu)) {
-        $indexMenu = 0;
-
-        while ($menu = mysqli_fetch_array($resultMenu)) {
-            $idMenu = $menu['idmenu'];
-            $nombreMenu = $menu['menu'];
-
-            $jTableResult['listaMenu'] .= "
-                <div class='accordion-item'>
-                    <h2 class='accordion-header' id='headingMenu{$indexMenu}'>
-                        <button class='accordion-button collapsed' type='button' data-bs-toggle='collapse' data-bs-target='#collapseMenu{$indexMenu}' aria-expanded='false' aria-controls='collapseMenu{$indexMenu}'>
-                            {$nombreMenu}
-                        </button>
-                    </h2>
-                    <div id='collapseMenu{$indexMenu}' class='accordion-collapse collapse' aria-labelledby='headingMenu{$indexMenu}' data-bs-parent='#accordionsubmenu'>
-                        <div class='accordion-body'>
-                            <table class='table table-striped'>
-                                <thead>
-                                    <tr>
-                                        <th>Rol</th>
-                                        <th>Dar permiso</th>
-                                    </tr>
-                                </thead>
-                                <tbody>";
-
-            // Consulta de cargos
-            $queryCargos = "SELECT idcargo, cargo FROM cargos WHERE cargos.idcargo != 1 ORDER BY cargo ASC";
-            if ($resultCargos = mysqli_query($conn, $queryCargos)) {
-                while ($cargo = mysqli_fetch_array($resultCargos)) {
-                    $jTableResult['listaMenu'] .= "
-                        <tr>
-                            <td>{$cargo['cargo']}</td>
-                            <td>
-                                <input type='checkbox' class='form-check-input' id  ='opcionSelectMenu' 
-                                    data-idmenu='{$idMenu}' 
-                                    data-idcargo='{$cargo['idcargo']}' 
-                                    id='permiso_{$idMenu}_{$cargo['idcargo']}'>
-                            </td>
-                        </tr>";
-                }
+            if (!$hasRecords) {
+                $jTableResult['listaRoles'] .= "
+                <tr>
+                    <td colspan='2' class='text-center text-muted'>
+                        No hay roles disponibles
+                    </td>
+                </tr>";
             }
 
-            $jTableResult['listaMenu'] .= "
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>";
-
-            $indexMenu++;
+            $jTableResult['listaRoles'] .= "</tbody></table></div>";
+            $jTableResult['success'] = true;
+            mysqli_stmt_close($stmt);
+        } else {
+            $jTableResult['listaRoles'] = "<div class='alert alert-danger'>Error al cargar los roles</div>";
+            error_log("Error en presentarRoles: " . mysqli_error($conn));
         }
-    }
 
-    print json_encode($jTableResult);
-    break;
+        echo json_encode($jTableResult);
+        break;
 
-    // case 'presentarmenu':
-    //     $jTableResult = array();
-    //     $jTableResult['listaMenu'] = "";
+    case 'presentarmenu':
+        $jTableResult = array();
+        $jTableResult['listaMenu'] = "";
+        $jTableResult['success'] = false;
 
-    //     $query = "SELECT idmenu, menu, ordenmenu FROM menu ORDER BY ordenmenu ASC";
-    //     $jTableResult['listaMenu'] = "
-    //         <table class='table table-striped'>
-    //             <thead><tr><th>Opciones de menú</th></tr></thead>
-    //             <tbody>";
+        // Consulta preparada para obtener menús
+        $queryMenu = "SELECT idmenu, menu, descripcion FROM menu WHERE estado = 1 ORDER BY ordenmenu ASC";
+        $stmtMenu = mysqli_prepare($conn, $queryMenu);
+        
+        if ($stmtMenu && mysqli_stmt_execute($stmtMenu)) {
+            $resultMenu = mysqli_stmt_get_result($stmtMenu);
+            $indexMenu = 0;
 
-    //     if ($result = mysqli_query($conn, $query)) {
-    //         while ($registro = mysqli_fetch_array($result)) {
-    //             $jTableResult['listaMenu'] .= "
-    //             <tr>
-    //                 <td>
-    //                     <button  
-    //                         type='button'
-    //                         id='menu'
-    //                         data-idsubmenu='{$registro['idmenu']}'
-    //                         data-submenu='{$registro['menu']}'
-    //                         class='btn btn-warning btn-sm'>
-    //                         {$registro['menu']}
-    //                     </button>
-    //                 </td>
-    //             </tr>";
-    //         }
-    //         $jTableResult['listaMenu'] .= "</tbody></table>";
-    //     }
+            // Consulta preparada para obtener cargos
+            $queryCargos = "SELECT idcargo, cargo FROM cargos WHERE estado = 1 AND idcargo != 1 ORDER BY cargo ASC";
+            $stmtCargos = mysqli_prepare($conn, $queryCargos);
+            
+            if ($stmtCargos && mysqli_stmt_execute($stmtCargos)) {
+                $resultCargos = mysqli_stmt_get_result($stmtCargos);
+                $cargos = [];
+                while ($cargo = mysqli_fetch_assoc($resultCargos)) {
+                    $cargos[] = $cargo;
+                }
+                mysqli_stmt_close($stmtCargos);
 
-    //     print json_encode($jTableResult);
-    //     break;
+                // Consulta para verificar permisos existentes
+                $queryPermisos = "SELECT idmenu, idcargo FROM permisos WHERE estado = 1";
+                $stmtPermisos = mysqli_prepare($conn, $queryPermisos);
+                $permisos = [];
+                
+                if ($stmtPermisos && mysqli_stmt_execute($stmtPermisos)) {
+                    $resultPermisos = mysqli_stmt_get_result($stmtPermisos);
+                    while ($permiso = mysqli_fetch_assoc($resultPermisos)) {
+                        $permisos[$permiso['idmenu'] . '_' . $permiso['idcargo']] = true;
+                    }
+                    mysqli_stmt_close($stmtPermisos);
+                }
 
-    // case 'presentarmenu':
-    //     $jTableResult = array();
-    //     $jTableResult['listaMenu'] = "";
+                $jTableResult['listaMenu'] = "<div class='accordion' id='accordionMenu'>";
+                
+                while ($menu = mysqli_fetch_array($resultMenu)) {
+                    $idMenu = $menu['idmenu'];
+                    $nombreMenu = htmlspecialchars($menu['menu'], ENT_QUOTES, 'UTF-8');
+                    $descripcionMenu = htmlspecialchars($menu['descripcion'] ?? '', ENT_QUOTES, 'UTF-8');
 
-    //     $query = "SELECT menu.idmenu, cargos.idcargo, submenu.idsubmenu, submenu.submenu, submenu.ordensubmenu 
-    //               FROM submenu, permisos, cargos, menu
-    //               WHERE submenu.idsubmenu = permisos.idsubmenu 
-    //               AND submenu.idsubmenu = menu.idmenu
-    //               AND permisos.idcargo = cargos.idcargo = 1 
-    //               AND permisos.idmenu = menu.idmenu = 1 
-    //               ORDER BY ordensubmenu ASC";
-    //     $jTableResult['listaMenu'] = "
-    //         <table class='table table-striped'>
-    //             <thead><tr><th>Opciones del submenu</th></tr></thead>
-    //             <tbody>";
+                    $jTableResult['listaMenu'] .= "
+                        <div class='accordion-item'>
+                            <h2 class='accordion-header' id='headingMenu{$indexMenu}'>
+                                <button class='accordion-button collapsed' type='button' 
+                                        data-bs-toggle='collapse' 
+                                        data-bs-target='#collapseMenu{$indexMenu}' 
+                                        aria-expanded='false' 
+                                        aria-controls='collapseMenu{$indexMenu}'>
+                                    <strong>{$nombreMenu}</strong>
+                                    " . ($descripcionMenu ? "<small class='text-muted ms-2'>{$descripcionMenu}</small>" : "") . "
+                                </button>
+                            </h2>
+                            <div id='collapseMenu{$indexMenu}' class='accordion-collapse collapse' 
+                                 aria-labelledby='headingMenu{$indexMenu}' 
+                                 data-bs-parent='#accordionMenu'>
+                                <div class='accordion-body'>
+                                    <div class='table-responsive'>
+                                        <table class='table table-sm table-hover'>
+                                            <thead>
+                                                <tr>
+                                                    <th>Rol</th>
+                                                    <th class='text-center'>Permiso</th>
+                                                    <th class='text-center'>Estado</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>";
 
-    //     if ($result = mysqli_query($conn, $query)) {
-    //         while ($registro = mysqli_fetch_array($result)) {
-    //             $jTableResult['listaMenu'] .= "
-    //             <tr>
-    //                 <td>
-    //                     <button  
-    //                         type='button'
-    //                         id='menu'
-    //                         data-submenu='{$registro['submenu']}'
-    //                         class='btn btn-warning btn-sm'>
-    //                         {$registro['submenu']}
-    //                     </button>
-    //                 </td>
-    //             </tr>";
-    //         }
-    //         $jTableResult['listaMenu'] .= "</tbody></table>";
-    //     }
+                    foreach ($cargos as $cargo) {
+                        $idCargo = $cargo['idcargo'];
+                        $nombreCargo = htmlspecialchars($cargo['cargo'], ENT_QUOTES, 'UTF-8');
+                        $checked = isset($permisos[$idMenu . '_' . $idCargo]) ? 'checked' : '';
+                        $statusClass = $checked ? 'text-success' : 'text-muted';
+                        $statusText = $checked ? 'Con acceso' : 'Sin acceso';
 
-    //     print json_encode($jTableResult);
-    //     break;
+                        $jTableResult['listaMenu'] .= "
+                                <tr>
+                                    <td>{$nombreCargo}</td>
+                                    <td class='text-center'>
+                                        <div class='form-check form-switch d-inline-block'>
+                                            <input type='checkbox' 
+                                                   class='form-check-input permiso-checkbox' 
+                                                   data-idmenu='{$idMenu}' 
+                                                   data-idcargo='{$idCargo}'
+                                                   id='permiso_{$idMenu}_{$idCargo}'
+                                                   {$checked}>
+                                            <label class='form-check-label' for='permiso_{$idMenu}_{$idCargo}'></label>
+                                        </div>
+                                    </td>
+                                    <td class='text-center {$statusClass}'>
+                                        <small>{$statusText}</small>
+                                    </td>
+                                </tr>";
+                    }
 
-    // case 'submenuver':
-    //     $jTableResult = array();
-    //     $jTableResult['listasubmenu'] = "";
+                    $jTableResult['listaMenu'] .= "
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>";
+                    $indexMenu++;
+                }
 
-    //     $query = "SELECT idsubmenu, submenu, ordensubmenu 
-    //               FROM submenu 
-    //               ORDER BY ordensubmenu ASC";
+                if ($indexMenu === 0) {
+                    $jTableResult['listaMenu'] = "<div class='alert alert-info'>No hay menús configurados</div>";
+                } else {
+                    $jTableResult['listaMenu'] .= "</div>"; // Cierre del accordion
+                }
+                
+                $jTableResult['success'] = true;
+            } else {
+                $jTableResult['listaMenu'] = "<div class='alert alert-danger'>Error al cargar los cargos</div>";
+                error_log("Error cargando cargos: " . mysqli_error($conn));
+            }
+            mysqli_stmt_close($stmtMenu);
+        } else {
+            $jTableResult['listaMenu'] = "<div class='alert alert-danger'>Error al cargar los menús</div>";
+            error_log("Error cargando menús: " . mysqli_error($conn));
+        }
 
-    //     $jTableResult['listasubmenu'] = "
-    //         <table class='table table-bordered'>
-    //             <thead>
-    //                 <tr>
-    //                     <th>Submenú</th>
-    //                     <th>Seleccionar</th>
-    //                 </tr>
-    //             </thead>
-    //             <tbody>";
+        echo json_encode($jTableResult);
+        break;
 
-    //     if ($result = mysqli_query($conn, $query)) {
-    //         while ($registro = mysqli_fetch_array($result)) {
-    //             $jTableResult['listasubmenu'] .= "
-    //             <tr>
-    //                 <td>{$registro['submenu']}</td>
-    //                 <td>
-    //                     <input type='checkbox' id=opcionSelectMenu form-check-input' data-idmenu='{$registro['idsubmenu']}'>
-    //                 </td>
-    //             </tr>";
-    //         }
-    //         $jTableResult['listasubmenu'] .= "</tbody></table>";
-    //     }
-
-    //     print json_encode($jTableResult);
-    //     break;
-
-    // case 'submenuver':
-    //     $jTableResult = array();
-    //     $jTableResult['listasubmenu'] = "";
-
-    //     $query = "SELECT idcargo, cargo
-    //               FROM cargos
-    //               WHERE cargos.idcargo 
-    //               ORDER BY idcargo ASC";
-
-    //     $jTableResult['listasubmenu'] = "
-    //         <table class='table table-bordered'>
-    //             <thead>
-    //                 <tr>
-    //                     <th>Rol</th>
-    //                     <th>Dar permisos</th>
-    //                 </tr>
-    //             </thead>
-    //             <tbody>";
-
-    //     if ($result = mysqli_query($conn, $query)) {
-    //         while ($registro = mysqli_fetch_array($result)) {
-    //             $jTableResult['listasubmenu'] .= "
-    //             <tr>
-    //                 <td>{$registro['cargo']}</td>
-    //                 <td>
-    //                     <input type='checkbox' id=opcionSelectMenu form-check-input' data-idmenu='{$registro['idcargo']}'>
-    //                 </td>
-    //             </tr>";
-    //         }
-    //         $jTableResult['listasubmenu'] .= "</tbody></table>";
-    //     }
-
-    //     print json_encode($jTableResult);
-    //     break;
+    default:
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Acción no válida'
+        ]);
+        break;
 }
 
 mysqli_close($conn);
+?>
